@@ -125,7 +125,7 @@ const CreateExam: React.FC = () => {
         open_count: questionCounts.open_count,
         subject: data.subject,
         course: data.course,
-        topic: data.topic,
+        topic: data.topic || '',
         sub_topic: data.sub_topic,
         difficulty: data.difficulty,
         pdf_text: pdfText || undefined, // Use extracted PDF text

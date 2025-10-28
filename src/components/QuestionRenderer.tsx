@@ -40,7 +40,7 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
       {question.options?.map((option, index) => {
         const isSelected = answer?.answer === index;
         const isCorrect = index === question.correct_answer;
-        const isQuestionEvaluated = isEvaluated && evaluationResult;
+        const isQuestionEvaluated = isEvaluated && !!evaluationResult;
         
         return (
           <label
@@ -132,7 +132,7 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
                       : 'border-blue-500 focus:border-blue-700'
                   }`}
                   placeholder="Answer"
-                  disabled={isEvaluated && evaluationResult}
+                  disabled={isEvaluated && !!evaluationResult}
                 />
               )}
             </span>
@@ -140,7 +140,7 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
         </div>
         
         {/* Show correct answer if wrong */}
-        {isEvaluated && evaluationResult && evaluationResult.status !== 'Correct' && (
+        {isEvaluated && !!evaluationResult && evaluationResult.status !== 'Correct' && (
           <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-sm text-yellow-800">
               <strong>Correct Answer:</strong> {evaluationResult.correctAnswer}
@@ -165,7 +165,7 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
             : 'border-gray-300 focus:ring-blue-500'
         }`}
         placeholder="Type your answer here..."
-        disabled={isEvaluated && evaluationResult}
+        disabled={isEvaluated && !!evaluationResult}
       />
     </div>
   );
@@ -270,7 +270,7 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
         })()}
 
         {/* Evaluation Result */}
-        {isEvaluated && evaluationResult && (
+        {isEvaluated && !!evaluationResult && (
           <div className={`mt-6 p-4 rounded-lg border-2 ${
             evaluationResult.status === 'Correct' 
               ? 'bg-green-50 border-green-200' 

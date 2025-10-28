@@ -26,7 +26,7 @@ export interface CreateExamData {
   board: string;
   subject: string;
   course: string;
-  topic: string;
+  topic?: string;
   sub_topic?: string;
   difficulty: string;
   pdf_url?: string;
