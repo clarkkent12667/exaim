@@ -237,7 +237,7 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
         {onSubmitAnswer && !isEvaluated && (() => {
           // Check if there's a valid answer based on question type
           const hasValidAnswer = (() => {
-            if (!answer?.answer) return false;
+            if (!answer?.answer && answer?.answer !== 0) return false;
             
             if (question.type === 'mcq') {
               return typeof answer.answer === 'number' && answer.answer >= 0;
