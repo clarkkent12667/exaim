@@ -18,11 +18,25 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Starting grade-open-ended function')
+    
     const { studentAnswer, modelAnswer, marks }: GradingRequest = await req.json()
+    console.log('Request data received:', { 
+      studentAnswerLength: studentAnswer?.length, 
+      modelAnswerLength: modelAnswer?.length, 
+      marks 
+    })
 
     if (!studentAnswer || !modelAnswer || !marks) {
       throw new Error('Missing required fields: studentAnswer, modelAnswer, marks')
     }
+
+    // Check if OpenAI API key is available
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
+    if (!openaiApiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is not set')
+    }
+    console.log('OpenAI API key is present')
 
     // Build the prompt for GPT-4o-mini
     const prompt = `You are grading an open-ended question.
@@ -65,10 +79,11 @@ Format the howToImprove field like this:
 - Always include the model answer in the howToImprove field when status is not "Correct"`
 
     // Call OpenAI GPT-4o-mini
+    console.log('Calling OpenAI API...')
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -89,36 +104,61 @@ Format the howToImprove field like this:
     })
 
     if (!openaiResponse.ok) {
-      throw new Error(`OpenAI API error: ${openaiResponse.statusText}`)
+      const errorText = await openaiResponse.text()
+      console.error('OpenAI API error:', openaiResponse.status, errorText)
+      throw new Error(`OpenAI API error: ${openaiResponse.status} - ${errorText}`)
     }
 
+    console.log('OpenAI API call successful')
     const openaiData = await openaiResponse.json()
     const generatedText = openaiData.choices[0]?.message?.content
 
     if (!generatedText) {
+      console.error('No generated text from OpenAI:', openaiData)
       throw new Error('No response from OpenAI')
     }
+    
+    console.log('OpenAI response received, length:', generatedText.length)
 
     // Parse the JSON response
     let gradingResult
     try {
+      console.log('Parsing OpenAI response as JSON...')
       gradingResult = JSON.parse(generatedText)
+      console.log('JSON parsing successful:', gradingResult)
     } catch (error) {
+      console.error('JSON parsing failed:', error.message)
+      console.error('Raw response:', generatedText)
       throw new Error(`Failed to parse OpenAI response as JSON: ${error.message}`)
     }
 
     // Validate the response structure
-    if (!gradingResult.status || !gradingResult.howToImprove || gradingResult.marksAwarded === undefined) {
+    console.log('Validating response structure...')
+    if (!gradingResult.status || gradingResult.marksAwarded === undefined) {
+      console.error('Invalid response structure:', gradingResult)
       throw new Error('Invalid response structure: missing required fields')
     }
 
+    // Ensure howToImprove is not empty - if it's empty for "Correct" answers, provide a default message
+    if (!gradingResult.howToImprove || gradingResult.howToImprove.trim() === '') {
+      if (gradingResult.status === 'Correct') {
+        gradingResult.howToImprove = 'Excellent work! Your answer demonstrates a complete understanding of the topic.'
+      } else {
+        gradingResult.howToImprove = 'Please review your answer and try again.'
+      }
+    }
+
     if (!['Correct', 'Partially Correct', 'Incorrect'].includes(gradingResult.status)) {
+      console.error('Invalid status:', gradingResult.status)
       throw new Error(`Invalid status: ${gradingResult.status}`)
     }
 
     if (gradingResult.marksAwarded < 0 || gradingResult.marksAwarded > marks) {
+      console.error('Invalid marks awarded:', gradingResult.marksAwarded, 'max:', marks)
       throw new Error(`Invalid marks awarded: ${gradingResult.marksAwarded}`)
     }
+
+    console.log('Validation successful, returning result')
 
     return new Response(
       JSON.stringify(gradingResult),
@@ -130,8 +170,13 @@ Format the howToImprove field like this:
 
   } catch (error) {
     console.error('Error grading open-ended question:', error)
+    console.error('Error stack:', error.stack)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
